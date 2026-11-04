@@ -1,11 +1,12 @@
 {
-  "name": "register",
+  "name": "open-subdomains",
   "version": "1.0.0",
   "private": true,
   "description": "Multi-zone free-subdomain registry, starting with is-a.ceo. JSON in, DNSControl out: dnsconfig.js loads domains/*.json at runtime and derives the zones from the entries. Deployed by HisokaLabs/dnscontrol-actions@v4.",
   "scripts": {
     "check": "node scripts/validate.js",
-    "verify-owners": "node scripts/verify-owners.js"
+    "verify-owners": "node scripts/verify-owners.js",
+    "health": "node scripts/health-check.js"
   },
   "engines": {
     "node": ">=18"

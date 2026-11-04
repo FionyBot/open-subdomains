@@ -1,0 +1,104 @@
+name: health
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+concurrency:
+  group: zone-health
+  cancel-in-progress: false
+
+jobs:
+  health:
+    name: Probe zones
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Probe every zone
+        id: probe
+        continue-on-error: true
+        run: npm run health
+
+      - name: File the outage issue
+        if: steps.probe.outcome == 'failure'
+        uses: actions/github-script@v8
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            const marker = '<!-- zone-health -->';
+            const title = 'Zone health: a managed zone is not resolving';
+            const body = [
+              marker,
+              '`npm run health` failed in the scheduled probe, so at least one',
+              'zone in `domains/_meta.json` no longer answers with an SOA.',
+              '',
+              `Latest run: ${process.env.RUN_URL}`,
+              '',
+              'This issue closes itself on the next healthy run.',
+            ].join('\n');
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+
+            const existing = issues.find((i) => i.body && i.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['zone-health'],
+              });
+            }
+
+      - name: Close the outage issue
+        if: steps.probe.outcome == 'success'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const marker = '<!-- zone-health -->';
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+
+            for (const issue of issues.filter((i) => i.body && i.body.includes(marker))) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: 'Zone probe is healthy again; closing.',
+              });
+
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+              });
+            }
