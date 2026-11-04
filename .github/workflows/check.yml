@@ -39,5 +39,7 @@ jobs:
 
       - name: DNSControl check
         uses: HisokaLabs/dnscontrol-actions@v4
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         with:
           args: check
