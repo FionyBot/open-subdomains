@@ -86,9 +86,11 @@ setup), and CNAME/MX/NS/SRV/PTR targets have to be real public hostnames
 (`localhost`, `.local`, `.home.arpa`, and friends are rejected).
 
 The full machine-readable definition is
-[domains/SCHEMA.json](domains/SCHEMA.json) (JSON Schema draft-07). Editors with
-a JSON Schema extension pick it up automatically when you add this to the top of
-your file:
+[domains/SCHEMA.json](domains/SCHEMA.json) (JSON Schema draft-07). It is served
+live at <https://is-a.ceo/domains.schema.json> and carries that URL as its `$id`,
+so the copy in this repository and the copy on the website are the same
+document. Editors with a JSON Schema extension pick it up automatically when you
+add this to the top of your file:
 
 ```json
 {

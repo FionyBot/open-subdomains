@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/HisokaLabs/open-subdomains/main/domains/SCHEMA.json",
+  "$id": "https://is-a.ceo/domains.schema.json",
   "title": "Registry subdomain entry",
   "description": "One entry per file. The filename must be <subdomain>.<domain>.json (e.g. mc.is-a.ceo.json, @.is-a.ceo.json, *.app.is-a.ceo.json). Zones come from the entries themselves: every zone that appears in the data is declared in dnsconfig.js.",
   "type": "object",
