@@ -55,7 +55,7 @@ if (files.length === 0) {
   process.exit(0);
 }
 
-const author = prAuthor.toLowerCase();
+const author = prAuthor.trim().toLowerCase();
 const mismatches = [];
 
 for (const file of files) {
@@ -72,7 +72,7 @@ for (const file of files) {
   const entries = Array.isArray(parsed) ? parsed : [parsed];
   for (const entry of entries) {
     if (typeof entry.owner !== "string" || entry.owner.length === 0) continue;
-    const owner = entry.owner.toLowerCase();
+    const owner = entry.owner.trim().toLowerCase();
     if (owner !== author) {
       mismatches.push(`${file}: owner "${entry.owner}" does not match the PR author "${prAuthor}"`);
     }

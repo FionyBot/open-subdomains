@@ -46,7 +46,7 @@ function validSubdomain(sub, maxLength) {
 function validIPv4(value) {
   const parts = String(value).split(".");
   if (parts.length !== 4) return false;
-  return parts.every((p) => /^\d{1,3}$/.test(p) && Number(p) <= 255);
+  return parts.every((p) => /^\d{1,3}$/.test(p) && !/^0\d/.test(p) && Number(p) <= 255);
 }
 
 function validHostname(value) {
@@ -157,20 +157,25 @@ function isPublicIPv6(value) {
   if (!ex) return false;
   // Anything with a dotted-quad tail is really an IPv4 address in disguise.
   if (ex.embedded !== null) return isPublicIPv4(ex.embedded);
-  const [a, b, c] = ex.nums;
+  const [a, b, c, d, e, f, g, h] = ex.nums;
   if (ex.nums.every((n) => n === 0)) return false; // ::
   if (ex.nums.slice(0, 7).every((n) => n === 0) && ex.nums[7] === 1) return false; // ::1
+  // IPv4-mapped (::ffff:0:0/96) and IPv4-compatible (::/96) ranges carry an
+  // IPv4 address in hextet form too, so they are judged as IPv4.
+  if (a === 0 && b === 0 && c === 0 && d === 0 && e === 0 && (f === 0xffff || f === 0)) {
+    return isPublicIPv4(`${g >> 8}.${g & 255}.${h >> 8}.${h & 255}`);
+  }
   if ((a & 0xffc0) === 0xfe80) return false; // link-local fe80::/10
   if ((a & 0xfe00) === 0xfc00) return false; // unique-local fc00::/7
   if ((a & 0xff00) === 0xff00) return false; // multicast ff00::/8
   if (a === 0x2001 && b === 0x0db8) return false; // documentation 2001:db8::/32
   if (a === 0x64 && b === 0xff9b) {
-    // NAT64 64:ff9b::/96 — the low 32 bits embed an IPv4 address.
+    // NAT64 64:ff9b::/96: the low 32 bits embed an IPv4 address.
     const [g6, g7] = [ex.nums[6], ex.nums[7]];
     return isPublicIPv4(`${g6 >> 8}.${g6 & 255}.${g7 >> 8}.${g7 & 255}`);
   }
   if (a === 0x2002) {
-    // 6to4 2002::/16 — hextets 2 and 3 embed an IPv4 address.
+    // 6to4 2002::/16: hextets 2 and 3 embed an IPv4 address.
     return isPublicIPv4(`${b >> 8}.${b & 255}.${c >> 8}.${c & 255}`);
   }
   return true;
@@ -227,6 +232,16 @@ function validateEntry(file, entry, meta, seen, claims, subOwners) {
 
   if (!isPlainObject(entry)) fail(`${where}: entry must be a single JSON object (one entry per file)`);
 
+  // Mirrors SCHEMA.json's additionalProperties: false. A key that the site and
+  // dnsconfig.js both ignore is a typo waiting to be trusted.
+  const allowedKeys = new Set([
+    "$schema", "_about", "domain", "subdomain", "owner", "email",
+    "proxied", "repo", "description", "records",
+  ]);
+  for (const key of Object.keys(entry)) {
+    if (!allowedKeys.has(key)) fail(`${where}: unknown key "${key}" (allowed: ${[...allowedKeys].join(", ")})`);
+  }
+
   if (typeof entry.domain !== "string" || entry.domain.length === 0) {
     fail(`${where}: missing "domain" (the zone this subdomain belongs to)`);
   }
@@ -272,6 +287,7 @@ function validateEntry(file, entry, meta, seen, claims, subOwners) {
     if (meta.blocked.includes(sub)) fail(`${where}: "${sub}" is blocked by the registry`);
   }
 
+  if (typeof entry.owner === "string") entry.owner = entry.owner.trim();
   const owner = entry.owner;
   if (typeof owner !== "string" || owner.length === 0) {
     fail(`${where}: missing "owner"`);
@@ -288,8 +304,11 @@ function validateEntry(file, entry, meta, seen, claims, subOwners) {
   // The "@" entry is the zone itself, not a claim, so it does not count
   // against its owner's quota; a maintainer-held bare "*" is infrastructure
   // and is likewise exempt. A wildcard "*.base" is checked against the base
-  // claim below instead of counting as a second subdomain.
-  if (sub !== "@" && sub !== "*" && !sub.startsWith("*.")) {
+  // claim below instead of counting as a second subdomain, and an
+  // underscore-prefixed record (_acme-challenge.base, _dmarc.base) is an
+  // auxiliary record for a name the owner already had to claim.
+  const auxiliary = sub.includes(".") && sub.split(".")[0].startsWith("_");
+  if (sub !== "@" && sub !== "*" && !sub.startsWith("*.") && !auxiliary) {
     const ownerKey = `${zone}/${owner.toLowerCase()}`;
     if (claims.has(ownerKey)) {
       fail(`${where}: owner "${owner}" already has ${claims.get(ownerKey)} in ${zone}, one subdomain per person`);
@@ -414,28 +433,59 @@ function validateEntry(file, entry, meta, seen, claims, subOwners) {
     });
   }
 
-  // An entry with only TXT records (e.g. a bare verification record) is
-  // fine. An entry pointing nowhere is not.
+  // CNAME is exclusive: RFC 1034/2181 allow no other record type on the same
+  // name. Everything except DNSSEC records is rejected here.
+  const exclusive = ["A", "AAAA", "MX", "NS", "SRV", "PTR"];
+  const clashing = exclusive.filter((kind) => norm[kind].length > 0);
+  if (norm.CNAME.length > 0 && clashing.length > 0) {
+    fail(`${where}: a CNAME cannot coexist with ${clashing.join(", ")} on the same name`);
+  }
+
+  for (const kind of ["A", "AAAA", "CNAME", "TXT", "MX", "NS", "SRV", "CAA", "PTR"]) {
+    const keys = norm[kind].map((v) => (typeof v === "string" ? v : JSON.stringify(v)));
+    if (new Set(keys).size !== keys.length) fail(`${where}: records.${kind} contains a duplicate value`);
+  }
+
+  // An entry pointing nowhere is not useful; every record-only shape that a
+  // real service needs is accepted below.
   const hasAddressing = norm.A.length + norm.AAAA.length + norm.CNAME.length > 0;
   const hasOnlyTxt = norm.TXT.length > 0 && !hasAddressing;
-  if (!hasAddressing && !hasOnlyTxt) {
-    fail(`${where}: must define at least one of records.A, records.AAAA, records.CNAME (or records.TXT alone)`);
+  const hasDelegation = norm.NS.length > 0;
+  const hasMail = norm.MX.length > 0;
+  const hasService = norm.SRV.length > 0;
+  const hasReverse = norm.PTR.length > 0;
+  if (!hasAddressing && !hasOnlyTxt && !hasDelegation && !hasMail && !hasService && !hasReverse) {
+    fail(`${where}: must define at least one of records.A, AAAA, CNAME, MX, NS, SRV, PTR, or TXT alone`);
   }
 }
 
 /**
- * A wildcard "*.base" may only widen a name its owner already holds, or an
- * attacker could claim every child of someone else's subdomain.
+ * A wildcard "*.base" or an auxiliary record such as "_acme-challenge.base"
+ * may only sit on a name its owner already holds, or an attacker could claim
+ * every child of someone else's subdomain and issue TLS certificates for it
+ * or forge their mail policy. Service discovery records (SRV, e.g.
+ * _minecraft._tcp.mc) carry no such privilege and stay open.
  */
-function checkWildcards(file, entry, subOwners) {
+function checkOwnedBase(file, entry, subOwners) {
   const sub = entry.subdomain;
-  if (typeof sub !== "string" || !sub.startsWith("*.")) return;
-  const base = sub.slice(2);
+  if (typeof sub !== "string" || !sub.includes(".")) return;
+  const labels = sub.split(".");
+  const records = isPlainObject(entry.records) ? entry.records : {};
+  const serviceOnly = Array.isArray(records.SRV) &&
+    !records.A && !records.AAAA && !records.CNAME && !records.TXT && !records.MX && !records.NS && !records.PTR;
+  let index = 0;
+  if (labels[0] === "*") {
+    index = 1;
+  } else if (serviceOnly) {
+    return;
+  }
+  while (index < labels.length - 1 && labels[index].startsWith("_")) index += 1;
+  const base = labels.slice(index).join(".");
+  if (base.length === 0 || base === sub) return;
   const zone = entry.domain.toLowerCase();
   const owner = String(entry.owner).toLowerCase();
-  const claimKey = `${zone}/${base}`;
-  if (subOwners.get(claimKey) !== owner) {
-    fail(`${file}: the wildcard "${sub}" needs "${base}" in ${zone} claimed by the same owner first`);
+  if (subOwners.get(`${zone}/${base}`) !== owner) {
+    fail(`${file}: "${sub}" needs "${base}" in ${zone} claimed by the same owner first`);
   }
 }
 
@@ -475,9 +525,10 @@ function main() {
     console.log(`validate: ok, ${file}`);
   }
 
-  // Pass 2: every wildcard must sit on top of the owner's own claim.
+  // Pass 2: every wildcard and every underscore-prefixed name must sit on top
+  // of the owner's own claim.
   for (const { file, entry } of entries) {
-    checkWildcards(file, entry, subOwners);
+    checkOwnedBase(file, entry, subOwners);
   }
 
   console.log(`validate: ${count} entr(y/ies) verified`);
