@@ -1,0 +1,34 @@
+name: stale
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: stale
+  cancel-in-progress: false
+
+jobs:
+  stale:
+    name: Mark and close stale PRs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-stale: 14
+          days-before-close: 7
+          days-before-issue-stale: -1
+          days-before-issue-close: -1
+          stale-pr-label: 'stale'
+          exempt-pr-labels: 'keep'
+          stale-pr-message: |
+            This pull request has been idle for two weeks. Push a commit or
+            comment to keep it open, otherwise it closes in seven days.
+          close-pr-message: |
+            Closed for inactivity. The name is free again; open a fresh PR if
+            you still want it.
