@@ -62,7 +62,7 @@ zone outside that list, so a stray or typoed zone can never reach the
 | `dnsconfig.js`             | Loads `domains/*.json` at runtime and declares one zone per entry.  |
 | `scripts/validate.js`      | The strict validator. Fails CI on any rule violation.               |
 | `scripts/verify-owners.js` | PR-author check. Owner must match the claimant.                     |
-| `.github/workflows/`       | check, preview, push.                                               |
+| `.github/workflows/`       | check, push, health, stale, label.                                  |
 
 The registry ships with two infrastructure entries, `@.is-a.ceo.json` (zone
 apex, the website's GitHub Pages records) and `www.is-a.ceo.json`. Zone apex
@@ -105,10 +105,10 @@ zone this registry manages.
 | Workflow      | Trigger       | What it does                                                    |
 | ------------- | ------------- | --------------------------------------------------------------- |
 | `check.yml`   | PR, push main | Validates `domains/`, verifies owners, runs `dnscontrol check`. |
-| `preview.yml` | PR            | Runs `dnscontrol preview`, comments the diff on the PR.         |
 | `push.yml`    | push main     | Runs `dnscontrol push` against Cloudflare.                      |
-
-The site repository runs `health.yml` every 30 minutes to probe the live zone.
+| `health.yml`  | every 30 min  | Probes every zone's SOA; opens an issue when a zone is down.    |
+| `stale.yml`   | daily         | Marks idle PRs stale and closes them a week later.              |
+| `label.yml`   | PR            | Labels PRs by changed files (domain, scripts, docs, ci).        |
 
 ## Claiming a subdomain
 
