@@ -1,7 +1,7 @@
 name: push
 
-# Applies every managed zone to Cloudflare. Only ever runs on main, only ever
-# after the check and preview jobs have passed on the merge commit.
+# Applies every managed zone to Cloudflare. Only ever runs on main, and only
+# after the check job has passed on the merge commit.
 #
 # Required secret: CLOUDFLARE_API_TOKEN with Zone.DNS edit permission on all
 # zones listed in domains/_meta.json.
@@ -14,7 +14,7 @@ on:
       - 'domains/**'
       - 'dnsconfig.js'
 
-# Never apply two dnscontrol pushes at once — overlapping runs would race on
+# Never apply two dnscontrol pushes at once. Overlapping runs would race on
 # the Cloudflare API and leave the zones in an undefined state.
 concurrency:
   group: dns-push
