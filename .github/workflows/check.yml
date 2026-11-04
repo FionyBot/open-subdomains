@@ -1,7 +1,7 @@
 name: check
 
 # Validates every domains/*.json entry against the registry rules. No
-# credentials needed — this is the fast gate that fails a bad PR early.
+# credentials needed. This is the fast gate that fails a bad PR early.
 
 on:
   pull_request:

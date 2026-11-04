@@ -1,8 +1,7 @@
 # Everyone can propose a subdomain; only maintainers merge one.
-* @dikaardnt
-* @rmdni-id
+* @dikaardnt @rmdni-id
 
-# The zone itself — keep this tight.
+# The zone itself. Keep this tight.
 /dnsconfig.js          @dikaardnt
 /domains/_meta.json    @dikaardnt
 /domains/SCHEMA.json   @dikaardnt

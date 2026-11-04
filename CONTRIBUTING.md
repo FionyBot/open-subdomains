@@ -54,13 +54,26 @@ must match exactly. All of these are valid, following the reference registry:
 | `_acme-challenge.app`     | `_acme-challenge.app.is-a.ceo.json` | DNS-01 certificate challenges and other `_` records. |
 
 One note on wildcards: a `*.go` claim is only accepted when `go` in the same
-zone is already claimed by the same owner — a wildcard must widen your own
-name, never someone else's. A bare zone-wide `*` is maintainer-only, since it
-would otherwise cover every unclaimed name in the zone. The filename contains
+zone is already claimed by the same owner: a wildcard must widen your own
+name, never someone else's. The same rule covers underscore records such as
+`_acme-challenge.go` and `_dmarc.go`, because whoever holds those can issue a
+certificate for `go` or forge its mail policy. Service records are the
+exception: a bare `_minecraft._tcp.mc` with only SRV data is open to anyone.
+A bare zone-wide `*` is maintainer-only, since it would otherwise cover every
+unclaimed name in the zone. The filename contains
 `*`, which Windows cannot create on an NTFS disk. That matches the reference
 registry, where everything runs on Linux and CI. If you develop on Windows,
 add wildcard entries through the GitHub web interface instead of a local
 clone.
+
+A CNAME cannot share a name with any other record type: no `A`, `AAAA`, `MX`,
+`NS`, `SRV`, or `PTR` next to it. That is a DNS rule, not a registry one.
+`TXT` and `CAA` are the two that may sit alongside a CNAME.
+
+An entry does not have to point anywhere with A/AAAA/CNAME. A delegation
+(`NS` only), a mail route (`MX` only), a service record (`SRV` only), a
+reverse record (`PTR` only), and a bare verification record (`TXT` only) are
+all accepted on their own.
 
 Single-label claims are checked against the reserved and blocked lists in
 `domains/_meta.json`. Dotted, wildcard, and apex names skip that check
@@ -68,7 +81,7 @@ because they are specific already.
 
 Records must point at the public internet: A/AAAA have to be public IPs
 (loopback, RFC 1918, link-local, CGNAT, and other internal ranges are
-rejected — a public name pointing into a private network is a DNS-rebinding
+rejected, because a public name pointing into a private network is a DNS-rebinding
 setup), and CNAME/MX/NS/SRV/PTR targets have to be real public hostnames
 (`localhost`, `.local`, `.home.arpa`, and friends are rejected).
 
@@ -119,7 +132,7 @@ If you leave `records` out, your subdomain gets GitHub Pages automatically:
 
 ```
 A     185.199.108.153  185.199.109.153  185.199.110.153  185.199.111.153
-AAAA  2606:50c1:8000::153  …::153  …::153  …::153
+AAAA  2606:50c1:8000::153 2606:50c1:8001::153 2606:50c1:8002::153 2606:50c1:8003::153
 ```
 
 That means `your-name.is-a.ceo` serves `your-name.github.io` the moment the PR
