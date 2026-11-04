@@ -5,6 +5,9 @@ name: preview
 
 on:
   pull_request:
+    paths:
+      - 'domains/**'
+      - 'dnsconfig.js'
 
 concurrency:
   group: dns-preview-${{ github.event.pull_request.number }}

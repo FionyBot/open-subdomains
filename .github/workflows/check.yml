@@ -5,9 +5,19 @@ name: check
 
 on:
   pull_request:
+    paths:
+      - 'domains/**'
+      - 'dnsconfig.js'
+      - 'scripts/**'
+      - 'package.json'
   push:
     branches:
       - main
+    paths:
+      - 'domains/**'
+      - 'dnsconfig.js'
+      - 'scripts/**'
+      - 'package.json'
 
 jobs:
   validate:
