@@ -1,0 +1,11 @@
+{
+  "domain": "is-a.ceo",
+  "subdomain": "dikaardnt",
+  "owner": "DikaArdnt",
+  "proxied": false,
+  "repo": "github.com/DikaArdnt/dikaardnt.is-a.ceo",
+  "description": "Subdomain for DikaArdnt's personal projects and portfolio.",
+  "records": {
+    "CNAME": ["dikaardnt.netlify.app"]
+  }
+}
