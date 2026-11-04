@@ -1,0 +1,24 @@
+name: Bug or request
+description: Something wrong with the registry, the site, or the DNS zone
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include the subdomain, if relevant, and any error output.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: Link (optional)
+      description: A URL, PR, or workflow run.
+    validations:
+      required: false

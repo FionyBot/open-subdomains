@@ -1,0 +1,79 @@
+name: preview
+
+# Shows what a pull request would change in the zone, as a PR comment.
+# Requires CLOUDFLARE_API_TOKEN (Zone.DNS edit) as a repository secret.
+
+on:
+  pull_request:
+
+concurrency:
+  group: dns-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Preview DNS changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: DNSControl preview
+        id: dnscontrol_preview
+        uses: HisokaLabs/dnscontrol-actions@v4
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        with:
+          args: preview
+
+      # The action exposes two outputs: `output` (full dnscontrol log) and
+      # `preview_comment` (noise-filtered, made for PR comments).
+      # Truncate to stay well under GitHub's 65536-character comment limit.
+      - name: Comment the preview on the PR
+        uses: actions/github-script@v8
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIEW_OUTPUT: ${{ steps.dnscontrol_preview.outputs.preview_comment }}
+        with:
+          script: |
+            const marker = '<!-- dns-preview -->';
+            const preview = (process.env.PREVIEW_OUTPUT || '').trim();
+            const max = 60000;
+            const body = [
+              '### DNS preview',
+              '',
+              preview
+                ? '```diff\n' + preview.slice(0, max) + (preview.length > max ? '\n… truncated' : '') + '\n```'
+                : '_The preview step produced no output. Check the workflow run for the dnscontrol log._',
+              '',
+              '_Maintainers: merge to apply._',
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+
+            const existing = comments.find(
+              (c) => c.body && c.body.includes(marker) && c.user.type === 'Bot'
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

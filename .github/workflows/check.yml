@@ -1,0 +1,43 @@
+name: check
+
+# Validates every domains/*.json entry against the registry rules. No
+# credentials needed — this is the fast gate that fails a bad PR early.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    name: Validate registry
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # Full history so verify-owners can diff the PR against its base branch.
+      # A shallow clone would silently fall back to checking every file.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate domains/*.json
+        run: npm run check
+
+      # Every entry must be owned by the person opening the PR. Skipped on push
+      # and locally, where PR_AUTHOR is unset.
+      - name: Verify entry owners match the PR author
+        if: github.event_name == 'pull_request'
+        env:
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: npm run verify-owners
+
+      - name: DNSControl check
+        uses: HisokaLabs/dnscontrol-actions@v4
+        with:
+          args: check

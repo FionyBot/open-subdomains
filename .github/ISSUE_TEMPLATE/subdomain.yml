@@ -1,0 +1,57 @@
+name: Add a subdomain
+description: Claim a subdomain under is-a.ceo
+title: "Add <subdomain>.is-a.ceo"
+labels: ["subdomain"]
+body:
+      - type: markdown
+        attributes:
+          value: |
+            Thanks for claiming a subdomain! Fill in the details below and a
+            maintainer will review the PR. The DNS change is previewed automatically.
+
+            Make sure the filename in `domains/` matches the subdomain exactly.
+            Check the name is free first at [is-a.ceo/check](https://is-a.ceo/check),
+            and see [domains/SCHEMA.json](https://github.com/HisokaLabs/open-subdomains/blob/main/domains/SCHEMA.json)
+            for the full field list.
+  - type: input
+    id: subdomain
+    attributes:
+      label: Subdomain
+      description: The label you want, e.g. "mc" for mc.is-a.ceo
+      placeholder: mc
+    validations:
+      required: true
+  - type: input
+    id: owner
+    attributes:
+      label: GitHub username
+      placeholder: your-username
+    validations:
+      required: true
+  - type: textarea
+    id: purpose
+    attributes:
+      label: What is it for?
+      description: One line, shown on the website.
+      placeholder: Personal portfolio / Minecraft server / home lab dashboard
+    validations:
+      required: true
+  - type: input
+    id: repo
+    attributes:
+      label: Repository (optional)
+      description: owner/repo or github.com/owner/repo
+      placeholder: github.com/you/your-repo
+    validations:
+      required: false
+  - type: checkboxes
+    id: rules
+    attributes:
+      label: Rules
+      options:
+        - label: I am not squatting, and this subdomain is not impersonating a brand or another person.
+          required: true
+        - label: The content hosted here will be legal in the Netherlands and will not be malware, phishing, or abuse-related.
+          required: true
+        - label: I have read CONTRIBUTING.md.
+          required: true

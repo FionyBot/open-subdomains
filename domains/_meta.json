@@ -1,0 +1,65 @@
+{
+  "_meta": {
+    "about": "Multi-zone subdomain registry. Add a JSON file in domains/ and open a PR; CI validates and previews the DNS change. dnsconfig.js reads these files at runtime, nothing is generated. Only zones listed here are accepted in \"domain\" — a zone must already exist in the Cloudflare account.",
+    "provider": "cloudflare",
+    "maxLength": 63,
+    "zones": [
+      "is-a.ceo"
+    ],
+    "maintainers": [
+      "hisokalabs",
+      "dikaardnt",
+      "rmdni-id"
+    ],
+    "reserved": [
+      "api",
+      "admin",
+      "mail",
+      "ns1",
+      "ns2",
+      "smtp",
+      "imap",
+      "ftp",
+      "vpn",
+      "git",
+      "raw",
+      "assets",
+      "static",
+      "cdn",
+      "internal",
+      "status",
+      "monitor",
+      "auth",
+      "login",
+      "account",
+      "billing",
+      "test",
+      "staging",
+      "prod",
+      "dev",
+      "localhost",
+      "is-a",
+      "isa"
+    ],
+    "blocked": [
+      "abuse",
+      "security",
+      "noc",
+      "postmaster",
+      "hostmaster",
+      "root",
+      "admin",
+      "administrator",
+      "paypal",
+      "apple",
+      "google",
+      "microsoft",
+      "cloudflare",
+      "github",
+      "appleid",
+      "icloud",
+      "outlook",
+      "gmail"
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "$schema": "./SCHEMA.json",
+  "domain": "is-a.ceo",
+  "subdomain": "www",
+  "owner": "HisokaLabs",
+  "description": "The is-a.ceo website on GitHub Pages.",
+  "records": {
+    "CNAME": ["hisokalabs.github.io"]
+  }
+}

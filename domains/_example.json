@@ -1,0 +1,19 @@
+{
+  "$schema": "./SCHEMA.json",
+  "_about": "Template. Copy this file to <subdomain>.<zone>.json (for example mc.is-a.ceo.json), fill it in, and open a pull request. Delete the keys you do not need; omitting \"records\" entirely gives the GitHub Pages default. The subdomain may be \"@\" (zone apex), a wildcard (*.app, only if you already claim app), or dotted labels such as _acme-challenge.app. A/AAAA must be public IPs; CNAME/MX/NS/SRV/PTR targets must be public hostnames. \"proxied\" defaults to false and should stay that way for GitHub Pages.",
+  "domain": "is-a.ceo",
+  "subdomain": "example",
+  "owner": "your-github-username",
+  "proxied": false,
+  "repo": "github.com/your-github-username/your-repo",
+  "description": "One line describing what runs here.",
+  "records": {
+    "A": ["203.0.113.10"],
+    "AAAA": ["2001:db8::10"],
+    "CNAME": ["example.github.io"],
+    "TXT": ["example-verification=1234567890"],
+    "MX": [{ "priority": 10, "target": "mx.example.com" }],
+    "SRV": [{ "priority": 0, "weight": 5, "port": 25565, "target": "mc.example.com" }],
+    "CAA": [{ "flag": 0, "tag": "issue", "value": "letsencrypt.org" }]
+  }
+}
