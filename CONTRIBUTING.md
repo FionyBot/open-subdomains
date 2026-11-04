@@ -8,8 +8,7 @@ DNS zone is deployed by [HisokaLabs/dnscontrol-actions@v4](https://github.com/Hi
 2. Copy [`domains/_example.json`](domains/_example.json) to
    `domains/<your-subdomain>.is-a.ceo.json` (for example `mc.is-a.ceo.json`).
    The filename must be exactly `<subdomain>.<zone>.json`.
-3. Open a pull request against `main`. A bot previews the DNS change and
-   comments it on the PR.
+3. Open a pull request against `main`. The `check` workflow validates your entry.
 4. When it merges, the zone is pushed to Cloudflare within a minute or two.
 
 ### The file
