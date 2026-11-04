@@ -153,6 +153,6 @@ the path.
 
 ## Abuse
 
-Report abuse to [contact@hisoka.net](mailto:contact@hisoka.net). The full
+Report abuse to [abuse@hisoka.net](mailto:abuse@hisoka.net). The full
 policy and what happens after a report is published at
 [is-a.ceo/abuse](https://is-a.ceo/abuse).
