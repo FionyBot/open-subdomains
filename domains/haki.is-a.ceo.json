@@ -1,0 +1,16 @@
+{
+  "$schema": "./SCHEMA.json",
+  "domain": "is-a.ceo",
+  "subdomain": "haki",
+  "owner": "shellhaki",
+  "proxied": false,
+  "description": "Haki's personal portfolio",
+  "records": {
+    "CNAME": [
+      "3d8e890ae6ab2d84.vercel-dns-017.com."
+    ],
+    "TXT": [
+      "vc-domain-verify=haki.is-a.ceo,89c449124e6d3a2e2279"
+    ]
+  }
+}
