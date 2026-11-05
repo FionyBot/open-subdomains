@@ -150,6 +150,14 @@ test("duplicate record values are rejected", () => {
     { "web.is-a.ceo.json": labelled("web", { records: { A: ["8.8.8.8", "8.8.8.8"] } }) },
     /duplicate value/,
   );
+  rejects(
+    { "ns.is-a.ceo.json": labelled("ns", { records: { NS: ["ns1.example.com", "ns1.example.com."] } }) },
+    /duplicate value/,
+  );
+  rejects(
+    { "ns2.is-a.ceo.json": labelled("ns2", { records: { NS: ["ns1.example.com", "NS1.EXAMPLE.COM"] } }) },
+    /duplicate value/,
+  );
 });
 
 test("the apex cannot use CNAME or NS", () => {
@@ -264,6 +272,54 @@ test("verify-owners rejects a claim by someone other than the PR author", () => 
 test("verify-owners accepts a claim by the PR author, case-insensitively", () => {
   const dir = makeRegistry({ "web.is-a.ceo.json": labelled("web", { owner: "TheAuthor" }) });
   assert.equal(run(dir, "verify-owners.js", { PR_AUTHOR: "theauthor" }).code, 0);
+});
+
+test("verify-owners allows maintainers to edit any entry", () => {
+  const dir = makeRegistry({ "web.is-a.ceo.json": labelled("web", { owner: "regular-user" }) });
+  assert.equal(run(dir, "verify-owners.js", { PR_AUTHOR: "dikaardnt" }).code, 0);
+});
+
+test("CNAME target with a trailing dot passes validation", () => {
+  const entry = labelled("trailing", {
+    records: { CNAME: ["trailing.vercel-dns-017.com."] },
+  });
+  assert.equal(accepts({ "trailing.is-a.ceo.json": entry }).code, 0);
+});
+
+test("CNAME specified as a string passes validation", () => {
+  const entry = labelled("example", {
+    records: { CNAME: "example.vercel-dns-017.com" },
+  });
+  assert.equal(accepts({ "example.is-a.ceo.json": entry }).code, 0);
+});
+
+test("CNAME with multiple targets is rejected", () => {
+  const entry = labelled("multi", {
+    records: { CNAME: ["target1.example.com", "target2.example.com"] },
+  });
+  rejects({ "multi.is-a.ceo.json": entry }, /only have a single target/);
+});
+
+test("self-referencing CNAME target is rejected", () => {
+  const entry = labelled("loop", {
+    records: { CNAME: ["loop.is-a.ceo"] },
+  });
+  rejects({ "loop.is-a.ceo.json": entry }, /cannot point to itself/);
+});
+
+test("CNAME target pointing to zone apex is rejected", () => {
+  const entry = labelled("apexloop", {
+    records: { CNAME: ["is-a.ceo."] },
+  });
+  rejects({ "apexloop.is-a.ceo.json": entry }, /cannot point to itself or the zone apex/);
+});
+
+test("domain file placed in repository root is rejected", () => {
+  const dir = makeRegistry({});
+  fs.writeFileSync(path.join(dir, "misplaced.is-a.ceo.json"), JSON.stringify(labelled("misplaced")));
+  const { code, out } = run(dir, "validate.js");
+  assert.equal(code, 1);
+  assert.match(out, /must be placed in the domains\/ directory/);
 });
 
 test("the real registry in this repository passes", () => {

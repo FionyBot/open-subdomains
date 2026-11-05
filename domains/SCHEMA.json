@@ -68,9 +68,15 @@
           "minItems": 1
         },
         "CNAME": {
-          "type": "array",
-          "items": { "type": "string" },
-          "minItems": 1
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1,
+              "maxItems": 1
+            }
+          ]
         },
         "TXT": {
           "type": "array",

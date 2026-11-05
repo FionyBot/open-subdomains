@@ -2,9 +2,9 @@
 
 "use strict";
 
-const fs = require("fs");
-const net = require("net");
-const path = require("path");
+const fs = require("node:fs");
+const net = require("node:net");
+const path = require("node:path");
 
 const ROOT = path.resolve(__dirname, "..");
 const DOMAINS_DIR = path.join(ROOT, "domains");
@@ -51,8 +51,13 @@ function validIPv4(value) {
 
 function validHostname(value) {
   if (typeof value !== "string") return false;
-  if (value.length === 0 || value.length > 253) return false;
-  return value.split(".").every((l) => /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/i.test(l));
+  const trimmed = value.trim();
+  const host = trimmed.endsWith(".") ? trimmed.slice(0, -1) : trimmed;
+  if (host.length === 0 || host.length > 253) return false;
+  const labels = host.split(".");
+  return labels.every(
+    (l) => l.length > 0 && l.length <= 63 && /^_?[a-z0-9]([a-z0-9-]*[a-z0-9])?$/i.test(l)
+  );
 }
 
 function validRepo(value) {
@@ -193,6 +198,7 @@ const LOCAL_SUFFIXES = new Set([
   "test", // RFC 2606
   "example", // RFC 2606
   "invalid", // RFC 2606
+  "ts.net", // Tailscale MagicDNS private networking
 ]);
 
 /** True when the host is one of the suffixes or sits underneath it. */
@@ -205,12 +211,15 @@ function hasLocalSuffix(host) {
  * least two labels, not an IP literal, and not a local-only name.
  */
 function validTarget(value) {
-  if (!validHostname(value)) return false;
-  const host = value.toLowerCase().replace(/\.$/, "");
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  const host = (trimmed.endsWith(".") ? trimmed.slice(0, -1) : trimmed).toLowerCase();
+  if (!validHostname(host)) return false;
   const labels = host.split(".");
   if (labels.length < 2) return false;
   if (hasLocalSuffix(host)) return false;
-  if (/^\d+$/.test(labels[labels.length - 1])) return false; // IP literal, not a name
+  const tld = labels[labels.length - 1];
+  if (!/^[a-z]{2,63}$/i.test(tld) && !/^xn--[a-z0-9-]{2,59}$/i.test(tld)) return false;
   return true;
 }
 
@@ -375,9 +384,25 @@ function validateEntry(file, entry, meta, seen, claims, subOwners) {
     });
   }
   if (records.CNAME !== undefined) {
-    if (!Array.isArray(records.CNAME)) fail(`${where}: records.CNAME must be an array`);
-    records.CNAME.forEach((v) => {
-      if (!validTarget(v)) fail(`${where}: "${v}" is not a valid public CNAME target`);
+    if (typeof records.CNAME !== "string" && !Array.isArray(records.CNAME)) {
+      fail(`${where}: records.CNAME must be a string or array of strings`);
+    }
+    const rawCname = Array.isArray(records.CNAME) ? records.CNAME : [records.CNAME];
+    if (rawCname.length === 0) {
+      fail(`${where}: records.CNAME cannot be empty`);
+    }
+    if (rawCname.length > 1) {
+      fail(`${where}: records.CNAME can only have a single target (DNS forbids multiple CNAMEs on the same name)`);
+    }
+    rawCname.forEach((v) => {
+      if (typeof v !== "string" || !validTarget(v)) {
+        fail(`${where}: "${v}" is not a valid public CNAME target`);
+      }
+      const targetHost = (v.trim().endsWith(".") ? v.trim().slice(0, -1) : v.trim()).toLowerCase();
+      const ownFqdn = sub === "@" ? zone : `${sub}.${zone}`;
+      if (targetHost === ownFqdn || targetHost === zone) {
+        fail(`${where}: CNAME target "${v}" cannot point to itself or the zone apex`);
+      }
       norm.CNAME.push(v);
     });
   }
@@ -447,7 +472,23 @@ function validateEntry(file, entry, meta, seen, claims, subOwners) {
   }
 
   for (const kind of ["A", "AAAA", "CNAME", "TXT", "MX", "NS", "SRV", "CAA", "PTR"]) {
-    const keys = norm[kind].map((v) => (typeof v === "string" ? v : JSON.stringify(v)));
+    const keys = norm[kind].map((v) => {
+      if (typeof v === "string") {
+        return kind === "TXT" ? v : v.trim().toLowerCase().replace(/\.$/, "");
+      }
+      if (kind === "MX") {
+        return JSON.stringify({ priority: v.priority, target: v.target.trim().toLowerCase().replace(/\.$/, "") });
+      }
+      if (kind === "SRV") {
+        return JSON.stringify({
+          priority: v.priority,
+          weight: v.weight,
+          port: v.port,
+          target: v.target.trim().toLowerCase().replace(/\.$/, ""),
+        });
+      }
+      return JSON.stringify(v);
+    });
     if (new Set(keys).size !== keys.length) fail(`${where}: records.${kind} contains a duplicate value`);
   }
 
@@ -494,7 +535,33 @@ function checkOwnedBase(file, entry, subOwners) {
   }
 }
 
+function checkMisplacedRootFiles() {
+  const knownRootConfigs = new Set([
+    "package.json",
+    "package-lock.json",
+    "creds.json",
+    "tsconfig.json",
+  ]);
+
+  for (const rf of fs.readdirSync(ROOT)) {
+    if (!rf.endsWith(".json") || knownRootConfigs.has(rf)) continue;
+    const full = path.join(ROOT, rf);
+    try {
+      const parsed = JSON.parse(fs.readFileSync(full, "utf8"));
+      if (isPlainObject(parsed) && (parsed.domain || parsed.subdomain)) {
+        fail(`${rf}: domain files must be placed in the domains/ directory, not in the repository root`);
+      }
+    } catch {
+      // Ignored if file cannot be parsed as JSON
+    }
+    if (rf.split(".").length >= 3) {
+      fail(`${rf}: domain files must be placed in the domains/ directory, not in the repository root`);
+    }
+  }
+}
+
 function main() {
+  checkMisplacedRootFiles();
   const meta = loadMeta();
 
   if (!fs.existsSync(DOMAINS_DIR)) fail(`domains/ directory not found`);

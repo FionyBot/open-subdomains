@@ -5,6 +5,11 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate:
@@ -27,16 +32,13 @@ jobs:
             exit 0
           fi
           touched=false
-          for page in 1 2 3 4 5 6 7 8 9 10; do
-            body=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
-              "https://api.github.com/repos/$REPO/pulls/$PR/files?per_page=100&page=$page") || exit 1
-            if printf '%s' "$body" | grep -qE '"filename": *"(domains/|scripts/|test/|dnsconfig\.js|package\.json)'; then
+          if files=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[].filename' 2>/dev/null); then
+            if echo "$files" | grep -qE '^(domains/|scripts/|test/|dnsconfig\.js|package\.json|.*\.json$)'; then
               touched=true
-              break
             fi
-            count=$(printf '%s' "$body" | grep -c '"filename"' || true)
-            if [ "$count" -lt 100 ]; then break; fi
-          done
+          else
+            touched=true
+          fi
           echo "registry=$touched" >> "$GITHUB_OUTPUT"
           if [ "$touched" = 'false' ]; then
             echo 'No registry-relevant files changed, so nothing to validate.' >> "$GITHUB_STEP_SUMMARY"
