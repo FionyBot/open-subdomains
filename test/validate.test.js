@@ -15,7 +15,7 @@ const META = {
     provider: "cloudflare",
     maxLength: 63,
     zones: ["is-a.ceo"],
-    maintainers: ["hisokalabs", "dikaardnt", "rmdni-id"],
+    maintainers: ["hisokalabs", "dikaardnt", "daningl"],
     reserved: ["api", "admin", "mail", "status", "dev", "is-a"],
     blocked: ["abuse", "security", "paypal", "github", "gmail"],
   },
@@ -206,7 +206,7 @@ const skipOnWindows = process.platform === "win32"
 
 test("a bare wildcard is maintainer-only", { skip: skipOnWindows }, () => {
   rejects({ "*.is-a.ceo.json": labelled("*", { owner: "random-person" }) }, /wildcard "\*" is maintainer-only/);
-  assert.equal(accepts({ "*.is-a.ceo.json": labelled("*", { owner: "rmdni-id" }) }).code, 0);
+  assert.equal(accepts({ "*.is-a.ceo.json": labelled("*", { owner: "daningl" }) }).code, 0);
 });
 
 test("a wildcard needs its base claimed by the same owner", { skip: skipOnWindows }, () => {
